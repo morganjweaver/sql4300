@@ -1,13 +1,23 @@
+//============================================================================
+// Name        : cpcs4300.cpp
+// Author      : Kevin Lundeen
+// Version     :
+// Copyright   : Your copyright notice
+// Description : Hello World in C, Ansi-style
+//============================================================================
+
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 #include <cassert>
 #include "db_cxx.h"
 #include "SQLParser.h"
 #include "sqlhelper.h"
+#include "storage_engine.h"
+#include "heap_storage.h"
 
 const char *EXAMPLE = "example.db";
 const unsigned int BLOCK_SZ = 4096;
+DbEnv* _DB_ENV;
 
 void createDb(DbEnv *env, char *name) {
 	Db db(env, 0);
@@ -16,6 +26,7 @@ void createDb(DbEnv *env, char *name) {
 	db.set_re_len(BLOCK_SZ); // Set record length to 4K
 	db.open(nullptr, name, nullptr, DB_RECNO, DB_CREATE | DB_TRUNCATE, 0644); // Erases anything already there
 }
+
 void testDb(Db *db) {
 	char block[BLOCK_SZ];
 	Dbt data(block, sizeof(block));
@@ -208,7 +219,7 @@ std::string execute(const hsql::SQLStatement *stmt) {
 	}
 }
 
-int main(int argc, char **argv) {
+int main(int argc, char *argv[]) {
 
 	if (argc != 2) {
 		std::cerr << "Usage: cpsc4300: dbenvpath" << std::endl;
@@ -223,10 +234,11 @@ int main(int argc, char **argv) {
 	env.set_error_stream(&std::cerr);
 	try {
 		env.open(envHome, DB_CREATE | DB_INIT_MPOOL, 0);
-	} catch (DbException exc) {
+	} catch (DbException& exc) {
 		std::cerr << "(sql4300: " << exc.what() << ")";
 		exit(1);
 	}
+	_DB_ENV = &env;
 
 	while (true) {
 		std::cout << "SQL> ";
@@ -236,6 +248,10 @@ int main(int argc, char **argv) {
 			continue;
 		if (query == "quit")
 			break;
+		if (query == "test") {
+			std::cout << "test_heap_storage: " << (test_heap_storage() ? "ok" : "failed") << std::endl;
+			continue;
+		}
 		hsql::SQLParserResult* result = hsql::SQLParser::parseSQLString(query);
 		if (!result->isValid()) {
 			std::cout << "invalid SQL: " << query << std::endl;
@@ -248,4 +264,3 @@ int main(int argc, char **argv) {
 
 	return EXIT_SUCCESS;
 }
-

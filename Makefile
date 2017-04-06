@@ -2,10 +2,10 @@ CCFLAGS     = -std=c++11 -std=c++0x -Wall -Wno-c++11-compat -DHAVE_CXX_STDHEADER
 BDB         = /usr/local/db6
 PARSER      = $(HOME)/sql-parser
 LIBS        = -ldb_cxx -lsqlparser
-OBJS        = sql4300.o
+OBJS        = sql4300.o heap_storage.o
 
 %.o: %.cpp
 	g++ -I$(BDB)/include -I$(PARSER)/src $(CCFLAGS) -o "$@" "$<"
 
 sql4300: $(OBJS)
-	g++ -L$(BDB)/lib -L$(PARSER) -o $@ $< $(LIBS)
+	g++ -L$(BDB)/lib -L$(PARSER) -o $@ $(OBJS) $(LIBS)
