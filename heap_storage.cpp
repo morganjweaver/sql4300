@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include "heap_storage.h"
 
-typedef u_int16_t u16;
+typedef uint16_t u16;
 
 SlottedPage::SlottedPage(Dbt &block, BlockID block_id, bool is_new) : DbBlock(block, block_id, is_new) {
 	if (is_new) {
@@ -16,12 +16,12 @@ SlottedPage::SlottedPage(Dbt &block, BlockID block_id, bool is_new) : DbBlock(bl
 
 // Add a new record to the block. Return its id.
 RecordID SlottedPage::add(const Dbt* data) throw(DbBlockNoRoomError) {
-	if (!has_room(data->get_size()))
+	if (!has_room((u16)data->get_size()))
 		throw DbBlockNoRoomError("not enough room for new record");
 	u16 id = ++this->num_records;
 	u16 size = (u16) data->get_size();
 	this->end_free -= size;
-	u16 loc = this->end_free + 1;
+	u16 loc = this->end_free + (u16) 1;
 	put_header();
 	put_header(id, size, loc);
 	std::memcpy(this->address(loc), data->get_data(), size);
@@ -69,7 +69,7 @@ void SlottedPage::del(RecordID record_id) {
 RecordIDs* SlottedPage::ids(void) {
 	RecordIDs* vec = new RecordIDs();
 	u16 size, loc;
-	for (int record_id = 1; record_id <= this->num_records; record_id++) {
+	for (RecordID record_id = 1; record_id <= this->num_records; record_id++) {
 	    get_header(size, loc, record_id);
 	    if (loc != 0)
 	    	vec->push_back(record_id);
@@ -79,8 +79,8 @@ RecordIDs* SlottedPage::ids(void) {
 
 // Get the size and offset for given id. For id of zero, it is the block header.
 void SlottedPage::get_header(u16 &size, u16 &loc, RecordID id) {
-	size = get_n(4*id);
-	loc = get_n(4*id + 2);
+	size = get_n((u16) 4*id);
+	loc = get_n((u16)(4*id + 2));
 }
 
 // Store the size and offset for given id. For id of zero, store the block header.
@@ -89,14 +89,14 @@ void SlottedPage::put_header(RecordID id, u16 size, u16 loc) {
 		size = this->num_records;
 		loc = this->end_free;
 	}
-	put_n(4*id, size);
-	put_n(4*id + 2, loc);
+	put_n((u16) 4*id, size);
+	put_n((u16)(4*id + 2), loc);
 }
 
 // Calculate if we have room to store a record with given size. The size should include the 4 bytes
 // for the header, too, if this is an add.
 bool SlottedPage::has_room(u16 size) {
-	u16 available = this->end_free - 4*(this->num_records+1);
+	u16 available = this->end_free - (u16)(4 * (this->num_records+1));
 	return size <= available;
 }
 
@@ -111,9 +111,9 @@ void SlottedPage::slide(u16 start, u16 end) {
         return;
 
     // slide data
-    void *to = this->address(this->end_free + 1 + shift);
-    void *from = this->address(this->end_free + 1);
-    int bytes = start - (this->end_free + 1);
+    void *to = this->address((u16)(this->end_free + 1 + shift));
+    void *from = this->address((u16)(this->end_free + 1));
+    uint bytes = start - (this->end_free + 1U);
     char temp[bytes];
     std::memcpy(temp, from, bytes);
     std::memcpy(to, temp, bytes);
@@ -215,7 +215,7 @@ void HeapFile::put(DbBlock* block) {
 // Sequence of all block ids.
 BlockIDs* HeapFile::block_ids() {
 	BlockIDs* vec = new BlockIDs();
-	for (int block_id = 1; block_id <= this->last; block_id++)
+	for (BlockID block_id = 1; block_id <= this->last; block_id++)
 		vec->push_back(block_id);
 	return vec;
 }
@@ -396,17 +396,28 @@ Dbt* HeapTable::marshal(const ValueDict* row) {
     	ColumnAttribute ca = this->column_attributes[col_num++];
     	ValueDict::const_iterator column = row->find(column_name);
 		Value value = column->second;
+
 		if (ca.get_data_type() == ColumnAttribute::DataType::INT) {
-			*(int32_t*) (bytes + offset) = value.n;
+            if (offset + 4 > DB_BLOCK_SZ - 4)
+                throw DbRelationError("row too big to marshal");
+
+            *(int32_t*) (bytes + offset) = value.n;
 			offset += sizeof(int32_t);
-		} else if (ca.get_data_type() == ColumnAttribute::DataType::TEXT) {
-			uint size = value.s.length();
-			*(u16*) (bytes + offset) = size;
+
+        } else if (ca.get_data_type() == ColumnAttribute::DataType::TEXT) {
+			u_long size = (u16) value.s.length();
+            if (size > UINT16_MAX)
+                throw DbRelationError("text field too long to marshal");
+            if (offset + 2 + size > DB_BLOCK_SZ)
+                throw DbRelationError("row too big to marshal");
+
+				*(u16*) (bytes + offset) = (u16) size;
 			offset += sizeof(u16);
 			std::memcpy(bytes+offset, value.s.c_str(), size); // assume ascii for now
 			offset += size;
-		} else {
-			throw DbRelationError("Only know how to marshal INT and TEXT");
+
+        } else {
+			throw DbRelationError("only know how to marshal INT and TEXT");
 		}
 	}
 	char *right_size_bytes = new char[offset];

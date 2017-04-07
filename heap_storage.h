@@ -34,16 +34,16 @@ public:
 	virtual RecordIDs* ids(void);
 
 protected:
-	u_int16_t num_records;
-	u_int16_t end_free;
+	uint16_t num_records;
+	uint16_t end_free;
 
-	virtual void get_header(u_int16_t &size, u_int16_t &loc, RecordID id=0);
-	virtual void put_header(RecordID id=0, u_int16_t size=0, u_int16_t loc=0);
-	virtual bool has_room(u_int16_t size);
-	virtual void slide(u_int16_t start, u_int16_t end);
-	virtual u_int16_t get_n(u_int16_t offset);
-	virtual void put_n(u_int16_t offset, u_int16_t n);
-	virtual void* address(u_int16_t offset);
+	virtual void get_header(uint16_t &size, uint16_t &loc, RecordID id=0);
+	virtual void put_header(RecordID id=0, uint16_t size=0, uint16_t loc=0);
+	virtual bool has_room(uint16_t size);
+	virtual void slide(uint16_t start, uint16_t end);
+	virtual uint16_t get_n(uint16_t offset);
+	virtual void put_n(uint16_t offset, uint16_t n);
+	virtual void* address(uint16_t offset);
 };
 
 /**
@@ -66,11 +66,11 @@ public:
 	virtual void put(DbBlock* block);
 	virtual BlockIDs* block_ids();
 
-	virtual u_int32_t get_last_block_id() {return last;}
+	virtual uint32_t get_last_block_id() {return last;}
 
 protected:
 	std::string dbfilename;
-	u_int32_t last;
+	uint32_t last;
 	bool closed;
 	Db db;
 	virtual void db_open(uint flags=0);
