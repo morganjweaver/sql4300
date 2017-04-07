@@ -19,8 +19,8 @@
 
 extern DbEnv* _DB_ENV;
 const uint DB_BLOCK_SZ = 4096;
-typedef u_int16_t RecordID;
-typedef u_int32_t BlockID;
+typedef uint16_t RecordID;
+typedef uint32_t BlockID;
 typedef std::vector<RecordID> RecordIDs;
 typedef std::length_error DbBlockNoRoomError;
 
@@ -29,12 +29,11 @@ public:
 	DbBlock(Dbt &block, BlockID block_id, bool is_new=false) : block(block), block_id(block_id) {}
 	virtual ~DbBlock() {}
 
-	virtual void initialize_new() {}
 	virtual RecordID add(const Dbt* data) throw(DbBlockNoRoomError) = 0;
-	virtual Dbt* get(RecordID record_id) = 0;
+	virtual Dbt* get(RecordID record_id) const = 0;
 	virtual void put(RecordID record_id, const Dbt &data) throw(DbBlockNoRoomError) = 0;
 	virtual void del(RecordID record_id) = 0;
-	virtual RecordIDs* ids() = 0;
+	virtual RecordIDs* ids() const = 0;
 
 	virtual Dbt* get_block() {return &block;}
 	virtual void* get_data() {return block.get_data();}
@@ -59,7 +58,7 @@ public:
 	virtual DbBlock* get_new() = 0;
 	virtual DbBlock* get(BlockID block_id) = 0;
 	virtual void put(DbBlock* block) = 0;
-	virtual BlockIDs* block_ids() = 0;
+	virtual BlockIDs* block_ids() const = 0;
 
 protected:
 	std::string name;
@@ -98,6 +97,7 @@ typedef std::vector<ColumnAttribute> ColumnAttributes;
 typedef std::pair<BlockID, RecordID> Handle;
 typedef std::vector<Handle> Handles;  // FIXME: will need to turn this into an iterator at some point
 typedef std::map<Identifier, Value> ValueDict;
+typedef std::vector<ValueDict> ValueDicts;
 
 class DbRelationError : public std::runtime_error {
 public:

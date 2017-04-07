@@ -29,7 +29,7 @@ RecordID SlottedPage::add(const Dbt* data) throw(DbBlockNoRoomError) {
 }
 
 // Get a record from the block. Return None if it has been deleted.
-Dbt* SlottedPage::get(RecordID record_id) {
+Dbt* SlottedPage::get(RecordID record_id) const {
 	u16 size, loc;
     get_header(size, loc, record_id);
     if (loc == 0)
@@ -66,7 +66,7 @@ void SlottedPage::del(RecordID record_id) {
 }
 
 // Sequence of all non-deleted record IDs.
-RecordIDs* SlottedPage::ids(void) {
+RecordIDs* SlottedPage::ids(void) const {
 	RecordIDs* vec = new RecordIDs();
 	u16 size, loc;
 	for (RecordID record_id = 1; record_id <= this->num_records; record_id++) {
@@ -78,7 +78,7 @@ RecordIDs* SlottedPage::ids(void) {
 }
 
 // Get the size and offset for given id. For id of zero, it is the block header.
-void SlottedPage::get_header(u16 &size, u16 &loc, RecordID id) {
+void SlottedPage::get_header(u16 &size, u16 &loc, RecordID id) const {
 	size = get_n((u16) 4*id);
 	loc = get_n((u16)(4*id + 2));
 }
@@ -95,7 +95,7 @@ void SlottedPage::put_header(RecordID id, u16 size, u16 loc) {
 
 // Calculate if we have room to store a record with given size. The size should include the 4 bytes
 // for the header, too, if this is an add.
-bool SlottedPage::has_room(u16 size) {
+bool SlottedPage::has_room(u16 size) const {
 	u16 available = this->end_free - (u16)(4 * (this->num_records+1));
 	return size <= available;
 }
@@ -134,7 +134,7 @@ void SlottedPage::slide(u16 start, u16 end) {
 }
 
 // Get 2-byte integer at given offset in block.
-u16 SlottedPage::get_n(u16 offset) {
+u16 SlottedPage::get_n(u16 offset) const {
 	return *(u16*)this->address(offset);
 }
 
@@ -144,7 +144,7 @@ void SlottedPage::put_n(u16 offset, u16 n) {
 }
 
 // Get a void* pointer into the data block.
-void* SlottedPage::address(u16 offset) {
+void* SlottedPage::address(u16 offset) const {
 	return (void*)((char*)this->block.get_data() + offset);
 }
 
@@ -213,7 +213,7 @@ void HeapFile::put(DbBlock* block) {
 }
 
 // Sequence of all block ids.
-BlockIDs* HeapFile::block_ids() {
+BlockIDs* HeapFile::block_ids() const {
 	BlockIDs* vec = new BlockIDs();
 	for (BlockID block_id = 1; block_id <= this->last; block_id++)
 		vec->push_back(block_id);
@@ -303,7 +303,13 @@ void HeapTable::update(const Handle handle, const ValueDict* new_values) {
 // where handle is sufficient to identify one specific record (e.g., returned from an insert
 // or select).
 void HeapTable::del(const Handle handle) {
-	throw DbRelationError("Not implemented");
+    open();
+    BlockID block_id = handle.first;
+    RecordID record_id = handle.second;
+    SlottedPage* block = this->file.get(block_id);
+    block->del(record_id);
+    this->file.put(block);
+    delete block;
 }
 
 // Conceptually, execute: SELECT <handle> FROM <table_name> WHERE 1
@@ -354,7 +360,7 @@ ValueDict* HeapTable::project(Handle handle, const ColumnNames* column_names) {
 
 // Check if the given row is acceptable to insert. Raise ValueError if not.
 // Otherwise return the full row dictionary.
-ValueDict* HeapTable::validate(const ValueDict* row) {
+ValueDict* HeapTable::validate(const ValueDict* row) const {
     ValueDict* full_row = new ValueDict();
     for (auto const& column_name: this->column_names) {
     	Value value;
@@ -388,7 +394,7 @@ Handle HeapTable::append(const ValueDict* row) {
 
 // return the bits to go into the file
 // caller responsible for freeing the returned Dbt and its enclosed ret->get_data().
-Dbt* HeapTable::marshal(const ValueDict* row) {
+Dbt* HeapTable::marshal(const ValueDict* row) const {
 	char *bytes = new char[DB_BLOCK_SZ]; // more than we need (we insist that one row fits into DB_BLOCK_SZ)
     uint offset = 0;
     uint col_num = 0;
@@ -427,7 +433,7 @@ Dbt* HeapTable::marshal(const ValueDict* row) {
 	return data;
 }
 
-ValueDict* HeapTable::unmarshal(Dbt* data) {
+ValueDict* HeapTable::unmarshal(Dbt* data) const {
     ValueDict *row = new ValueDict();
     Value value;
     char *bytes = (char*)data->get_data();
@@ -454,6 +460,18 @@ ValueDict* HeapTable::unmarshal(Dbt* data) {
     return row;
 }
 
+void test_set_row(ValueDict &row, int a, std::string b) {
+    row["a"] = Value(a);
+    row["b"] = Value(b);
+}
+bool test_compare(DbRelation &table, Handle handle, int a, std::string b) {
+    ValueDict *result = table.project(handle);
+    Value value = (*result)["a"];
+    if (value.n != a)
+        return false;
+    value = (*result)["b"];
+    return !(value.s != b);
+}
 
 // test function -- returns true if all tests pass
 bool test_heap_storage() {
@@ -466,6 +484,7 @@ bool test_heap_storage() {
 	ca.set_data_type(ColumnAttribute::TEXT);
 	column_attributes.push_back(ca);
     HeapTable table1("_test_create_drop_cpp", column_names, column_attributes);
+    std::cout << "test_heap_storage: " << std::endl;
     table1.create();
     std::cout << "create ok" << std::endl;
     table1.drop();  // drop makes the object unusable because of BerkeleyDB restriction -- maybe want to fix this some day
@@ -476,22 +495,40 @@ bool test_heap_storage() {
     std::cout << "create_if_not_exsts ok" << std::endl;
 
     ValueDict row;
-    row["a"] = Value(12);
-    row["b"] = Value("Hello!");
-    std::cout << "try insert" << std::endl;
+    std::string b = "alkjsl;kj; as;lkj;alskjf;laks df;alsdkjfa;lsdkfj ;alsdfkjads;lfkj a;sldfkj a;sdlfjk a";
+    test_set_row(row, -1, b );
     table.insert(&row);
     std::cout << "insert ok" << std::endl;
-    Handles* handles = table.select();
-    std::cout << "select ok " << handles->size() << std::endl;
-    ValueDict *result = table.project((*handles)[0]);
-    std::cout << "project ok" << std::endl;
-    Value value = (*result)["a"];
-    if (value.n != 12)
-    	return false;
-    value = (*result)["b"];
-    if (value.s != "Hello!")
-		return false;
-    table.drop();
 
+    Handles* handles = table.select();
+    if (!test_compare(table, (*handles)[0], -1, b))
+        return false;
+    std::cout << "select/project ok " << handles->size() << std::endl;
+
+    Handle last_handle;
+    for (int i = 0; i < 1000; i++) {
+        test_set_row(row, i, b);
+        last_handle = table.insert(&row);
+    }
+    handles = table.select();
+    if (handles->size() != 1001)
+        return false;
+    int i = -1;
+    for (auto const& handle: *handles)
+        if (!test_compare(table, handle, i++, b))
+            return false;
+    std::cout << "many inserts/select/projects ok" << std::endl;
+
+    table.del(last_handle);
+    handles = table.select();
+    if (handles->size() != 1000)
+        return false;
+    i = -1;
+    for (auto const& handle: *handles)
+        if (!test_compare(table, handle, i++, b))
+            return false;
+    std::cout << "del ok" << std::endl;
+
+    table.drop();
     return true;
 }

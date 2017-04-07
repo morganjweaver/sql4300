@@ -28,22 +28,22 @@ public:
 	virtual ~SlottedPage() {}
 
 	virtual RecordID add(const Dbt* data) throw(DbBlockNoRoomError);
-	virtual Dbt* get(RecordID record_id);
+	virtual Dbt* get(RecordID record_id) const;
 	virtual void put(RecordID record_id, const Dbt &data) throw(DbBlockNoRoomError);
 	virtual void del(RecordID record_id);
-	virtual RecordIDs* ids(void);
+	virtual RecordIDs* ids(void) const;
 
 protected:
 	uint16_t num_records;
 	uint16_t end_free;
 
-	virtual void get_header(uint16_t &size, uint16_t &loc, RecordID id=0);
+	virtual void get_header(uint16_t &size, uint16_t &loc, RecordID id=0) const;
 	virtual void put_header(RecordID id=0, uint16_t size=0, uint16_t loc=0);
-	virtual bool has_room(uint16_t size);
+	virtual bool has_room(uint16_t size) const;
 	virtual void slide(uint16_t start, uint16_t end);
-	virtual uint16_t get_n(uint16_t offset);
+	virtual uint16_t get_n(uint16_t offset) const;
 	virtual void put_n(uint16_t offset, uint16_t n);
-	virtual void* address(uint16_t offset);
+	virtual void* address(uint16_t offset) const;
 };
 
 /**
@@ -64,7 +64,7 @@ public:
 	virtual SlottedPage* get_new(void);
 	virtual SlottedPage* get(BlockID block_id);
 	virtual void put(DbBlock* block);
-	virtual BlockIDs* block_ids();
+	virtual BlockIDs* block_ids() const;
 
 	virtual uint32_t get_last_block_id() {return last;}
 
@@ -103,10 +103,10 @@ public:
 
 protected:
 	HeapFile file;
-	virtual ValueDict* validate(const ValueDict* row);
+	virtual ValueDict* validate(const ValueDict* row) const;
 	virtual Handle append(const ValueDict* row);
-	virtual Dbt* marshal(const ValueDict* row);
-	virtual ValueDict* unmarshal(Dbt* data);
+	virtual Dbt* marshal(const ValueDict* row) const;
+	virtual ValueDict* unmarshal(Dbt* data) const;
 };
 
 bool test_heap_storage();
