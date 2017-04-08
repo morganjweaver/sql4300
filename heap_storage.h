@@ -54,7 +54,7 @@ protected:
  */
 class HeapFile : public DbFile {
 public:
-	HeapFile(std::string name) : DbFile(name), dbfilename(""), last(0), closed(true), db(_DB_ENV, 0) {}
+	HeapFile(std::string name);
 	virtual ~HeapFile() {}
 
 	virtual void create(void);
@@ -74,6 +74,7 @@ protected:
 	bool closed;
 	Db db;
 	virtual void db_open(uint flags=0);
+    virtual uint32_t get_block_count();
 };
 
 /**
@@ -100,6 +101,7 @@ public:
 	virtual Handles* select(const ValueDict* where);
 	virtual ValueDict* project(Handle handle);
 	virtual ValueDict* project(Handle handle, const ColumnNames* column_names);
+    using DbRelation::project;
 
 protected:
 	HeapFile file;
@@ -107,6 +109,7 @@ protected:
 	virtual Handle append(const ValueDict* row);
 	virtual Dbt* marshal(const ValueDict* row) const;
 	virtual ValueDict* unmarshal(Dbt* data) const;
+	virtual bool selected(Handle handle, const ValueDict* where);
 };
 
 bool test_heap_storage();

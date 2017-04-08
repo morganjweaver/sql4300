@@ -11,7 +11,6 @@
 #include "SQLParser.h"
 #include "ParseTreeToString.h"
 #include "SQLExec.h"
-#include "heap_storage.h"
 
 void initialize_environment(char *envHome);
 
@@ -76,5 +75,6 @@ void initialize_environment(char *envHome) {
         exit(1);
     }
     _DB_ENV = env;
+    initialize_schema_tables();
 }
 

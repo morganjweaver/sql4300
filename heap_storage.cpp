@@ -155,6 +155,10 @@ void* SlottedPage::address(u16 offset) const {
  * *******************
  */
 
+HeapFile::HeapFile(std::string name) : DbFile(name), dbfilename(""), last(0), closed(true), db(_DB_ENV, 0) {
+    this->dbfilename = this->name + ".db";
+}
+
 // Create physical file.
 void HeapFile::create(void) {
 	db_open(DB_CREATE|DB_EXCL);
@@ -190,10 +194,10 @@ SlottedPage* HeapFile::get_new(void) {
 	Dbt key(&block_id, sizeof(block_id));
 
 	// write out an empty block and read it back in so Berkeley DB is managing the memory
-	this->db.put(nullptr, &key, &data, 0);
 	this->db.get(nullptr, &key, &data, 0);
 	SlottedPage* page = new SlottedPage(data, this->last, true);
 	this->db.put(nullptr, &key, &data, 0); // write it out again with initialization done to it
+    this->db.get(nullptr, &key, &data, 0);
 	return page;
 }
 
@@ -220,21 +224,19 @@ BlockIDs* HeapFile::block_ids() const {
 	return vec;
 }
 
+uint32_t HeapFile::get_block_count() {
+    DB_BTREE_STAT* stat;
+    this->db.stat(nullptr, &stat, DB_FAST_STAT);
+    return stat->bt_ndata;
+}
+
 // Wrapper for Berkeley DB open, which does both open and creation.
 void HeapFile::db_open(uint flags) {
     if (!this->closed)
         return;
     this->db.set_re_len(DB_BLOCK_SZ); // record length - will be ignored if file already exists
-    this->dbfilename = this->name + ".db";
     this->db.open(nullptr, this->dbfilename.c_str(), nullptr, DB_RECNO, flags, 0644);
-
-    if (flags == 0) {
-    	DB_BTREE_STAT stat;
-		this->db.stat(nullptr, &stat, DB_FAST_STAT);
-		this->last = stat.bt_ndata;
-    } else {
-    	this->last = 0;
-    }
+    this->last = flags ? 0 : get_block_count();
     this->closed = false;
 }
 
@@ -315,20 +317,23 @@ void HeapTable::del(const Handle handle) {
 // Conceptually, execute: SELECT <handle> FROM <table_name> WHERE 1
 // Returns a list of handles for qualifying rows.
 Handles* HeapTable::select() {
-	ValueDict empty;
-	return select(&empty);
+	return select(nullptr);
 }
 
 // Conceptually, execute: SELECT <handle> FROM <table_name> WHERE <where>
 // Returns a list of handles for qualifying rows.
 Handles* HeapTable::select(const ValueDict* where) {
+    open();
 	Handles* handles = new Handles();
 	BlockIDs* block_ids = file.block_ids();
     for (auto const& block_id: *block_ids) {
     	SlottedPage* block = file.get(block_id);
     	RecordIDs* record_ids = block->ids();
-    	for (auto const& record_id: *record_ids)
-    		handles->push_back(Handle(block_id, record_id));
+    	for (auto const& record_id: *record_ids) {
+			Handle handle(block_id, record_id);
+			if (selected(handle , where))
+				handles->push_back(Handle(block_id, record_id));
+		}
     	delete record_ids;
     	delete block;
     }
@@ -353,8 +358,11 @@ ValueDict* HeapTable::project(Handle handle, const ColumnNames* column_names) {
     if (column_names->empty())
     	return row;
     ValueDict* result = new ValueDict();
-    for (auto const& column_name: *column_names)
-    	(*result)[column_name] = (*row)[column_name];
+    for (auto const& column_name: *column_names) {
+        if (row->find(column_name) == row->end())
+            throw DbRelationError("table does not have column named '" + column_name + "'");
+        (*result)[column_name] = (*row)[column_name];
+    }
     return result;
 }
 
@@ -441,6 +449,7 @@ ValueDict* HeapTable::unmarshal(Dbt* data) const {
     uint col_num = 0;
     for (auto const& column_name: this->column_names) {
     	ColumnAttribute ca = this->column_attributes[col_num++];
+        value.data_type = ca.get_data_type();
     	if (ca.get_data_type() == ColumnAttribute::DataType::INT) {
     		value.n = *(int32_t*)(bytes + offset);
     		offset += sizeof(int32_t);
@@ -459,6 +468,15 @@ ValueDict* HeapTable::unmarshal(Dbt* data) const {
     }
     return row;
 }
+
+// See if the row at the given handle satisfies the given where clause
+bool HeapTable::selected(Handle handle, const ValueDict* where) {
+    if (where == nullptr)
+        return true;
+    ValueDict* row = this->project(handle, where);
+    return *row == *where;
+}
+
 
 void test_set_row(ValueDict &row, int a, std::string b) {
     row["a"] = Value(a);

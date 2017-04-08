@@ -70,6 +70,7 @@ public:
 		INT,
 		TEXT
 	};
+    ColumnAttribute() : data_type(INT) {}
 	ColumnAttribute(DataType data_type) : data_type(data_type) {}
 	virtual ~ColumnAttribute() {}
 
@@ -89,6 +90,9 @@ public:
 	Value() : n(0) {data_type = ColumnAttribute::INT;}
 	Value(int32_t n) : n(n) {data_type = ColumnAttribute::INT;}
 	Value(std::string s) : s(s) {data_type = ColumnAttribute::TEXT; }
+
+	bool operator==(const Value &other) const;
+    bool operator!=(const Value &other) const;
 };
 
 typedef std::string Identifier;
@@ -97,7 +101,7 @@ typedef std::vector<ColumnAttribute> ColumnAttributes;
 typedef std::pair<BlockID, RecordID> Handle;
 typedef std::vector<Handle> Handles;  // FIXME: will need to turn this into an iterator at some point
 typedef std::map<Identifier, Value> ValueDict;
-typedef std::vector<ValueDict> ValueDicts;
+typedef std::vector<ValueDict*> ValueDicts;
 
 class DbRelationError : public std::runtime_error {
 public:
@@ -125,6 +129,7 @@ public:
 	virtual Handles* select(const ValueDict* where) = 0;
 	virtual ValueDict* project(Handle handle) = 0;
 	virtual ValueDict* project(Handle handle, const ColumnNames* column_names) = 0;
+    virtual ValueDict* project(Handle handle, const ValueDict* column_names_from_dict);
 
 protected:
 	Identifier table_name;

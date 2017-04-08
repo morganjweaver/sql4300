@@ -4,6 +4,7 @@
 
 #pragma once
 #include <string>
+#include <vector>
 #include "SQLParser.h"
 
 
@@ -20,4 +21,7 @@ public:
     static std::string create(const hsql::CreateStatement *stmt);
     static std::string drop(const hsql::DropStatement *stmt);
     static std::string show(const hsql::ShowStatement *stmt);
+
+    static const std::vector<std::string> reserved_words;
+    static bool is_reserved_word(std::string word);
 };

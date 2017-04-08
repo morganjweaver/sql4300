@@ -8,13 +8,13 @@ std::ostream &operator<<(std::ostream &out, const QueryResult &qres) {
     if (qres.column_names != nullptr) {
         for (auto const &column_name: *qres.column_names)
             out << column_name << " ";
-        out << std::endl;
+        out << std::endl << "+";
         for (int i = 0; i < qres.column_names->size(); i++)
-            out << "------------";
+            out << "------------+";
         out << std::endl;
         for (auto const &row: *qres.rows) {
             for (auto const &column_name: *qres.column_names) {
-                Value value = row.at(column_name);
+                Value value = row->at(column_name);
                 switch (value.data_type) {
                     case ColumnAttribute::INT:
                         out << value.n;
@@ -34,6 +34,8 @@ std::ostream &operator<<(std::ostream &out, const QueryResult &qres) {
     return out;
 }
 
+QueryResult::~QueryResult() { /* FIXME */ }
+
 QueryResult *SQLExec::execute(const hsql::SQLStatement *statement) throw(SQLExecError) {
     try {
         switch (statement->type()) {
@@ -51,14 +53,14 @@ QueryResult *SQLExec::execute(const hsql::SQLStatement *statement) throw(SQLExec
     }
 }
 
-QueryResult *SQLExec::create(const hsql::CreateStatement *statement) throw(SQLExecError) {
+QueryResult *SQLExec::create(const hsql::CreateStatement *statement) {
     return new QueryResult("execute create not implemented");
 }
 
-QueryResult *SQLExec::drop(const hsql::DropStatement *statement) throw(SQLExecError) {
+QueryResult *SQLExec::drop(const hsql::DropStatement *statement) {
     return new QueryResult("execute drop not implemented");
 }
 
-QueryResult *SQLExec::show(const hsql::ShowStatement *statement) throw(SQLExecError) {
+QueryResult *SQLExec::show(const hsql::ShowStatement *statement)  {
     return new QueryResult("execute show not implemented");
 }
