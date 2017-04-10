@@ -195,11 +195,11 @@ SlottedPage* HeapFile::get_new(void) {
 	Dbt key(&block_id, sizeof(block_id));
 
 	// write out an empty block and read it back in so Berkeley DB is managing the memory
-	this->db.get(nullptr, &key, &data, 0);
 	SlottedPage* page = new SlottedPage(data, this->last, true);
-	this->db.put(nullptr, &key, &data, 0); // write it out again with initialization done to it
+	this->db.put(nullptr, &key, &data, 0); // write it out with initialization done to it
+    delete page;
     this->db.get(nullptr, &key, &data, 0);
-	return page;
+    return new SlottedPage(data, this->last);
 }
 
 // Get a block from the database file.
