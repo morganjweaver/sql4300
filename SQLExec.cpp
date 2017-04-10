@@ -9,7 +9,7 @@ std::ostream &operator<<(std::ostream &out, const QueryResult &qres) {
         for (auto const &column_name: *qres.column_names)
             out << column_name << " ";
         out << std::endl << "+";
-        for (int i = 0; i < qres.column_names->size(); i++)
+        for (u_long i = 0; i < qres.column_names->size(); i++)
             out << "------------+";
         out << std::endl;
         for (auto const &row: *qres.rows) {
