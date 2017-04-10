@@ -48,7 +48,7 @@ protected:
     static QueryResult *create(const hsql::CreateStatement *statement);
     static QueryResult *drop(const hsql::DropStatement *statement);
     static QueryResult *show(const hsql::ShowStatement *statement);
-    static QueryResult *show_tables(const hsql::ShowStatement *statement);
+    static QueryResult *show_tables();
     static QueryResult *show_columns(const hsql::ShowStatement *statement);
 
     static void

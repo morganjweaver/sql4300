@@ -426,7 +426,7 @@ Dbt* HeapTable::marshal(const ValueDict* row) const {
             if (offset + 2 + size > DB_BLOCK_SZ)
                 throw DbRelationError("row too big to marshal");
 
-				*(u16*) (bytes + offset) = (u16) size;
+            *(u16*) (bytes + offset) = (u16) size;
 			offset += sizeof(u16);
 			memcpy(bytes+offset, value.s.c_str(), size); // assume ascii for now
 			offset += size;
