@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <cassert>
+#include <cstring>
 #include "db_cxx.h"
 #include "SQLParser.h"
 #include "ParseTreeToString.h"

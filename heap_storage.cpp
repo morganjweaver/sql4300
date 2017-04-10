@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <memory.h>
 #include "heap_storage.h"
 
 typedef uint16_t u16;
@@ -24,7 +25,7 @@ RecordID SlottedPage::add(const Dbt* data) throw(DbBlockNoRoomError) {
 	u16 loc = this->end_free + (u16) 1;
 	put_header();
 	put_header(id, size, loc);
-	std::memcpy(this->address(loc), data->get_data(), size);
+	memcpy(this->address(loc), data->get_data(), size);
 	return id;
 }
 
@@ -47,9 +48,9 @@ void SlottedPage::put(RecordID record_id, const Dbt &data) throw(DbBlockNoRoomEr
         if (!has_room(extra))
     		throw DbBlockNoRoomError("not enough room for enlarged record");
 		slide(loc, loc - extra);
-		std::memcpy(this->address(loc-extra), data.get_data(), new_size);
+		memcpy(this->address(loc-extra), data.get_data(), new_size);
 	} else {
-		std::memcpy(this->address(loc), data.get_data(), new_size);
+		memcpy(this->address(loc), data.get_data(), new_size);
         slide(loc+new_size, loc+size);
 	}
     get_header(size, loc, record_id);
@@ -115,8 +116,8 @@ void SlottedPage::slide(u16 start, u16 end) {
     void *from = this->address((u16)(this->end_free + 1));
     uint bytes = start - (this->end_free + 1U);
     char temp[bytes];
-    std::memcpy(temp, from, bytes);
-    std::memcpy(to, temp, bytes);
+    memcpy(temp, from, bytes);
+    memcpy(to, temp, bytes);
 
     // fix up headers
     RecordIDs* record_ids = ids();
@@ -187,7 +188,7 @@ void HeapFile::close(void) {
 // Returns the new empty DbBlock that is managing the records in this block and its block id.
 SlottedPage* HeapFile::get_new(void) {
 	char block[DB_BLOCK_SZ];
-	std::memset(block, 0, sizeof(block));
+	memset(block, 0, sizeof(block));
 	Dbt data(block, sizeof(block));
 
 	int block_id = ++this->last;
@@ -427,7 +428,7 @@ Dbt* HeapTable::marshal(const ValueDict* row) const {
 
 				*(u16*) (bytes + offset) = (u16) size;
 			offset += sizeof(u16);
-			std::memcpy(bytes+offset, value.s.c_str(), size); // assume ascii for now
+			memcpy(bytes+offset, value.s.c_str(), size); // assume ascii for now
 			offset += size;
 
         } else {
@@ -435,7 +436,7 @@ Dbt* HeapTable::marshal(const ValueDict* row) const {
 		}
 	}
 	char *right_size_bytes = new char[offset];
-	std::memcpy(right_size_bytes, bytes, offset);
+	memcpy(right_size_bytes, bytes, offset);
 	delete[] bytes;
 	Dbt *data = new Dbt(right_size_bytes, offset);
 	return data;
@@ -457,7 +458,7 @@ ValueDict* HeapTable::unmarshal(Dbt* data) const {
     		u16 size = *(u16*)(bytes + offset);
     		offset += sizeof(u16);
     		char buffer[DB_BLOCK_SZ];
-    		std::memcpy(buffer, bytes+offset, size);
+    		memcpy(buffer, bytes+offset, size);
     		buffer[size] = '\0';
     		value.s = std::string(buffer);  // assume ascii for now
             offset += size;
