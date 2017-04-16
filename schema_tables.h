@@ -46,3 +46,18 @@ public:
     virtual void create();
     virtual Handle insert(const ValueDict* row);
 };
+
+
+class Indices : public HeapTable {
+public:
+    static const Identifier TABLE_NAME;
+protected:
+    static ColumnNames& COLUMN_NAMES();
+    static ColumnAttributes& COLUMN_ATTRIBUTES();
+
+public:
+    Indices();
+    virtual ~Indices() {}
+
+    virtual Handle insert(const ValueDict* row);
+};

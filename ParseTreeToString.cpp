@@ -181,20 +181,34 @@ std::string ParseTreeToString::insert(const hsql::InsertStatement *stmt) {
 
 std::string ParseTreeToString::create(const hsql::CreateStatement *stmt) {
     std::string ret("CREATE ");
-    if (stmt->type != hsql::CreateStatement::kTable)
-        return ret + "...";
-    ret += "TABLE ";
-    if (stmt->ifNotExists)
-        ret += "IF NOT EXISTS ";
-    ret += std::string(stmt->tableName) + " (";
-    bool doComma = false;
-    for (hsql::ColumnDefinition *col : *stmt->columns) {
-        if (doComma)
-            ret += ", ";
-        ret += column_definition(col);
-        doComma = true;
+    if (stmt->type == hsql::CreateStatement::kTable) {
+        ret += "TABLE ";
+        if (stmt->ifNotExists)
+            ret += "IF NOT EXISTS ";
+        ret += std::string(stmt->tableName) + " (";
+        bool doComma = false;
+        for (hsql::ColumnDefinition *col : *stmt->columns) {
+            if (doComma)
+                ret += ", ";
+            ret += column_definition(col);
+            doComma = true;
+        }
+        ret += ")";
+    } else if (stmt->type == hsql::CreateStatement::kIndex) {
+        ret += "INDEX ";
+        ret += std::string(stmt->indexName) + " ON ";
+        ret += std::string(stmt->tableName) + " (";
+        bool doComma = false;
+        for (auto const& col : *stmt->indexColumns) {
+            if (doComma)
+                ret += ", ";
+            ret += std::string(col);
+            doComma = true;
+        }
+        ret += ")";
+    } else {
+        ret += "...";
     }
-    ret += ")";
     return ret;
 }
 
@@ -203,6 +217,9 @@ std::string ParseTreeToString::drop(const hsql::DropStatement *stmt) {
     switch(stmt->type) {
         case hsql::DropStatement::kTable:
             ret += "TABLE ";
+            break;
+        case hsql::DropStatement::kIndex:
+            ret += std::string("INDEX ") + stmt->indexName + " FROM ";
             break;
         default:
             ret += "? ";
@@ -221,7 +238,7 @@ std::string ParseTreeToString::show(const hsql::ShowStatement *stmt) {
             ret += std::string("COLUMNS FROM ") + stmt->tableName;
             break;
         case hsql::ShowStatement::kIndex:
-            ret += "INDEX";
+            ret += std::string("INDEX FROM ") + stmt->tableName;
             break;
         default:
             ret += "?what?";

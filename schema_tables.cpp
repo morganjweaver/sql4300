@@ -10,6 +10,7 @@ void initialize_schema_tables() {
     Columns columns;
     columns.create_if_not_exists();
     columns.close();
+    /* FIXME: Create _indices */
 }
 
 // Not terribly useful since the parser weeds most of these out
@@ -66,6 +67,7 @@ Tables::Tables() : HeapTable(TABLE_NAME, COLUMN_NAMES(), COLUMN_ATTRIBUTES()) {
     if (Tables::columns_table == nullptr)
         columns_table = new Columns();
     Tables::table_cache[columns_table->TABLE_NAME] = columns_table;
+    /* FIXME - cache _indices table */
 }
 
 // Create the file and also, manually add schema tables.
@@ -76,6 +78,7 @@ void Tables::create() {
     insert(&row);
     row["table_name"] = Value("_columns");
     insert(&row);
+    /* FIXME - add _indices */
 }
 
 // Manually check that table_name is unique.
@@ -100,7 +103,6 @@ void Tables::del(Handle handle) {
         Tables::table_cache.erase(table_name);
         delete table;
     }
-
     HeapTable::del(handle);
 }
 
@@ -149,7 +151,7 @@ DbRelation& Tables::get_table(Identifier table_name) {
  */
 const Identifier Columns::TABLE_NAME = "_columns";
 
-// get the column name for _tables column
+// get the column name for _columns columns
 ColumnNames& Columns::COLUMN_NAMES() {
     static ColumnNames cn;
     if (cn.empty()) {
@@ -160,7 +162,7 @@ ColumnNames& Columns::COLUMN_NAMES() {
     return cn;
 }
 
-// get the column attribute for _tables column
+// get the column attribute for _columns columns
 ColumnAttributes& Columns::COLUMN_ATTRIBUTES() {
     static ColumnAttributes cas;
     if (cas.empty()) {
@@ -172,7 +174,7 @@ ColumnAttributes& Columns::COLUMN_ATTRIBUTES() {
     return cas;
 }
 
-// ctor - we have a fixed table structure of just one column: table_name
+// ctor - we have a fixed table structure
 Columns::Columns() : HeapTable(TABLE_NAME, COLUMN_NAMES(), COLUMN_ATTRIBUTES()) {
 }
 
@@ -191,6 +193,7 @@ void Columns::create() {
     insert(&row);
     row["column_name"] = Value("data_type");
     insert(&row);
+    /* FIXME: add known rows for _indices columns */
 }
 
 // Manually check that (table_name, column_name) is unique.
@@ -214,5 +217,43 @@ Handle Columns::insert(const ValueDict* row) {
     if (!unique)
         throw DbRelationError("duplicate column " + row->at("table_name").s + "." + row->at("column_name").s);
 
+    return HeapTable::insert(row);
+}
+
+
+/*
+ * ****************************
+ * Indices class implementation
+ * ****************************
+ */
+const Identifier Indices::TABLE_NAME = "_indices";
+
+// get the column name for _indices column
+ColumnNames& Indices::COLUMN_NAMES() {
+    static ColumnNames cn;
+    if (cn.empty()) {
+        cn.push_back("FIXME - correct columns for _indices"); // FIXME
+    }
+    return cn;
+}
+
+// get the column attribute for _indices column
+ColumnAttributes& Indices::COLUMN_ATTRIBUTES() {
+    static ColumnAttributes cas;
+    if (cas.empty()) {
+        ColumnAttribute ca(ColumnAttribute::TEXT);
+        cas.push_back(ca);
+        /* FIXME - to match columns for _indices */
+    }
+    return cas;
+}
+
+// ctor - we have a fixed table structure
+Indices::Indices() : HeapTable(TABLE_NAME, COLUMN_NAMES(), COLUMN_ATTRIBUTES()) {
+}
+
+// Manually check constraints
+Handle Indices::insert(const ValueDict* row) {
+    /* FIXME - check constraints */
     return HeapTable::insert(row);
 }

@@ -84,9 +84,17 @@ void SQLExec::column_definition(const hsql::ColumnDefinition *col, Identifier& c
 }
 
 QueryResult *SQLExec::create(const hsql::CreateStatement *statement) {
-    if (statement->type != hsql::CreateStatement::kTable)
-        return new QueryResult("Only CREATE TABLE is implemented");
+    switch(statement->type) {
+        case hsql::CreateStatement::kTable:
+            return create_table(statement);
+        case hsql::CreateStatement::kIndex:
+            return create_index(statement);
+        default:
+            return new QueryResult("Only CREATE TABLE and CREATE INDEX are implemented");
+    }
+}
 
+QueryResult *SQLExec::create_table(const hsql::CreateStatement *statement) {
     Identifier table_name = statement->tableName;
     ColumnNames column_names;
     ColumnAttributes column_attributes;
@@ -138,11 +146,23 @@ QueryResult *SQLExec::create(const hsql::CreateStatement *statement) {
     return new QueryResult("created " + table_name);
 }
 
+QueryResult *SQLExec::create_index(const hsql::CreateStatement *statement) {
+    return new QueryResult("create index not implemented");  // FIXME
+}
+
 // DROP ...
 QueryResult *SQLExec::drop(const hsql::DropStatement *statement) {
-    if (statement->type != hsql::DropStatement::kTable)
-        throw SQLExecError("unrecognized DROP type");
+    switch(statement->type) {
+        case hsql::DropStatement::kTable:
+            return drop_table(statement);
+        case hsql::DropStatement::kIndex:
+            return drop_index(statement);
+        default:
+            return new QueryResult("Only DROP TABLE and CREATE INDEX are implemented");
+    }
+}
 
+QueryResult *SQLExec::drop_table(const hsql::DropStatement *statement) {
     Identifier table_name = statement->name;
     if (table_name == Tables::TABLE_NAME || table_name == Columns::TABLE_NAME)
         throw SQLExecError("cannot drop a schema table");
@@ -152,6 +172,8 @@ QueryResult *SQLExec::drop(const hsql::DropStatement *statement) {
 
     // get the table
     DbRelation& table = SQLExec::tables->get_table(table_name);
+
+    /* FIXME - drop any indices. */
 
     // remove from _columns schema
     DbRelation& columns = SQLExec::tables->get_table(Columns::TABLE_NAME);
@@ -169,6 +191,10 @@ QueryResult *SQLExec::drop(const hsql::DropStatement *statement) {
     return new QueryResult(std::string("dropped ") + table_name);
 }
 
+QueryResult *SQLExec::drop_index(const hsql::DropStatement *statement) {
+    return new QueryResult("drop index not implemented");  // FIXME
+}
+
 QueryResult *SQLExec::show(const hsql::ShowStatement *statement) {
     switch (statement->type) {
         case hsql::ShowStatement::kTables:
@@ -176,9 +202,14 @@ QueryResult *SQLExec::show(const hsql::ShowStatement *statement) {
         case hsql::ShowStatement::kColumns:
             return show_columns(statement);
         case hsql::ShowStatement::kIndex:
+            return show_index(statement);
         default:
             throw SQLExecError("unrecognized SHOW type");
     }
+}
+
+QueryResult *SQLExec::show_index(const hsql::ShowStatement *statement) {
+    return new QueryResult("show index not implemented");  // FIXME
 }
 
 QueryResult *SQLExec::show_tables() {
