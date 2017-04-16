@@ -68,7 +68,8 @@ class ColumnAttribute {
 public:
 	enum DataType {
 		INT,
-		TEXT
+		TEXT,
+        BOOLEAN
 	};
     ColumnAttribute() : data_type(INT) {}
 	ColumnAttribute(DataType data_type) : data_type(data_type) {}
@@ -90,6 +91,8 @@ public:
 	Value() : n(0) {data_type = ColumnAttribute::INT;}
 	Value(int32_t n) : n(n) {data_type = ColumnAttribute::INT;}
 	Value(std::string s) : s(s) {data_type = ColumnAttribute::TEXT; }
+    Value(const char *s) : s(s) {data_type = ColumnAttribute::TEXT; }
+    Value(bool b) : n(b ? 1: 0) {data_type = ColumnAttribute::BOOLEAN; }
 
 	bool operator==(const Value &other) const;
     bool operator!=(const Value &other) const;

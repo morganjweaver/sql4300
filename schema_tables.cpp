@@ -10,7 +10,7 @@ void initialize_schema_tables() {
     Columns columns;
     columns.create_if_not_exists();
     columns.close();
-    /* FIXME: Create _indices */
+    /* FIXME -- create _indices */
 }
 
 // Not terribly useful since the parser weeds most of these out
@@ -78,7 +78,7 @@ void Tables::create() {
     insert(&row);
     row["table_name"] = Value("_columns");
     insert(&row);
-    /* FIXME - add _indices */
+    /* FIXME - add row for _indices */
 }
 
 // Manually check that table_name is unique.
@@ -120,7 +120,16 @@ void Tables::get_columns(Identifier table_name, ColumnNames &column_names, Colum
         Identifier column_name = (*row)["column_name"].s;
         column_names.push_back(column_name);
 
-        column_attribute.set_data_type((*row)["data_type"].s == "INT" ? ColumnAttribute::INT : ColumnAttribute::TEXT);
+        ColumnAttribute::DataType data_type;
+        if ((*row)["data_type"].s == "INT")
+            data_type = ColumnAttribute::INT;
+        else if ((*row)["data_type"].s == "TEXT")
+            data_type = ColumnAttribute::TEXT;
+        else if ((*row)["data_type"].s == "BOOLEAN")
+            data_type = ColumnAttribute::BOOLEAN;
+        else
+            throw DbRelationError("Unknown data type");
+        column_attribute.set_data_type(data_type);
         column_attributes.push_back(column_attribute);
 
         delete row;
@@ -232,7 +241,7 @@ const Identifier Indices::TABLE_NAME = "_indices";
 ColumnNames& Indices::COLUMN_NAMES() {
     static ColumnNames cn;
     if (cn.empty()) {
-        cn.push_back("FIXME - correct columns for _indices"); // FIXME
+        /* FIXME -- add columns for _indices */
     }
     return cn;
 }
@@ -243,7 +252,7 @@ ColumnAttributes& Indices::COLUMN_ATTRIBUTES() {
     if (cas.empty()) {
         ColumnAttribute ca(ColumnAttribute::TEXT);
         cas.push_back(ca);
-        /* FIXME - to match columns for _indices */
+        /* FIXME -- add column attributes for _indices */
     }
     return cas;
 }
