@@ -44,6 +44,7 @@ public:
 
 protected:
     static Tables *tables;
+    static Indices *indices;
 
     static QueryResult *create(const hsql::CreateStatement *statement);
     static QueryResult *create_table(const hsql::CreateStatement *statement);

@@ -197,7 +197,7 @@ std::string ParseTreeToString::create(const hsql::CreateStatement *stmt) {
     } else if (stmt->type == hsql::CreateStatement::kIndex) {
         ret += "INDEX ";
         ret += std::string(stmt->indexName) + " ON ";
-        ret += std::string(stmt->tableName) + " (";
+        ret += std::string(stmt->tableName) + " USING " + stmt->indexType + " (";
         bool doComma = false;
         for (auto const& col : *stmt->indexColumns) {
             if (doComma)

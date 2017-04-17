@@ -134,6 +134,9 @@ public:
 	virtual ValueDict* project(Handle handle, const ColumnNames* column_names) = 0;
     virtual ValueDict* project(Handle handle, const ValueDict* column_names_from_dict);
 
+    virtual const ColumnNames& get_column_names() const { return column_names; }
+    virtual const ColumnAttributes get_column_attributes() const { return column_attributes; }
+
 protected:
 	Identifier table_name;
 	ColumnNames column_names;
@@ -142,7 +145,9 @@ protected:
 
 class DbIndex {
 public:
-    DbIndex(DbRelation* relation, Identifier name, ColumnNames key_columns, bool unique)
+    static const uint MAX_COMPOSITE = 32U; // maximum number of columns in a composite index
+
+    DbIndex(DbRelation& relation, Identifier name, ColumnNames key_columns, bool unique)
             : relation(relation), name(name), key_columns(key_columns), unique(unique) {}
     virtual ~DbIndex() {}
 
@@ -161,7 +166,7 @@ public:
     virtual void del(Handle handle) = 0;
 
 protected:
-    DbRelation* relation;
+    DbRelation& relation;
     Identifier name;
     ColumnNames key_columns;
     bool unique;
