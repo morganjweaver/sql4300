@@ -141,6 +141,18 @@ DbRelation& Tables::get_table(Identifier table_name) {
     return *table;
 }
 
+void Tables::show_tables() {
+    // select(), for each handle, project(), for each ValueDict, print
+    Handles* hands = this->select();
+    std::cout << "---+----Table Names----+---" << std::endl;
+    for(int i = 0; i<hands->size(); i++ ){
+        Value tblname = this->project((*hands)[i])->at("table_name");
+        std::cout << tblname.s << std::endl;
+    }
+    std::cout << "---+---------+---------+---" << std::endl;
+
+}
+
 
 /*
  * ****************************
@@ -215,4 +227,22 @@ Handle Columns::insert(const ValueDict* row) {
         throw DbRelationError("duplicate column " + row->at("table_name").s + "." + row->at("column_name").s);
 
     return HeapTable::insert(row);
+}
+
+void Columns::show_cols(std::string name) {
+    Identifier var_name;
+    Handles* hands = this->select();
+    ColumnAttribute type;
+
+    std::cout << "table name    column name     data type" << std::endl;
+    std::cout << "------------+--------------+------------" << std::endl;
+    for(int i = 0; i< hands->size(); i++){
+            ValueDict* row = this->project((*hands)[i]);
+            Value tablename = row->at("table_name");
+            Value colname = row->at("column_name");
+            Value dtype = row->at("data_type");
+        if(tablename.s == name) {
+            std::cout << tablename.s << "   " << colname.s << "   " << dtype.s << std::endl;
+        }
+    }
 }

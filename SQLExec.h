@@ -43,13 +43,11 @@ public:
     static QueryResult *execute(const hsql::SQLStatement *statement) throw(SQLExecError);
 
 protected:
-    static Tables *tables;
+    //static Tables tables;
 
     static QueryResult *create(const hsql::CreateStatement *statement);
     static QueryResult *drop(const hsql::DropStatement *statement);
     static QueryResult *show(const hsql::ShowStatement *statement);
-    static QueryResult *show_tables(const hsql::ShowStatement *statement);
-    static QueryResult *show_columns(const hsql::ShowStatement *statement);
 
     static void
     column_definition(const hsql::ColumnDefinition *col, Identifier &column_name, ColumnAttribute &column_attribute);

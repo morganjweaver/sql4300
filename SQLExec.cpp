@@ -3,6 +3,7 @@
 //
 
 #include "SQLExec.h"
+#include "Table.h"
 
 std::ostream &operator<<(std::ostream &out, const QueryResult &qres) {
     if (qres.column_names != nullptr) {
@@ -53,14 +54,56 @@ QueryResult *SQLExec::execute(const hsql::SQLStatement *statement) throw(SQLExec
     }
 }
 
+
 QueryResult *SQLExec::create(const hsql::CreateStatement *statement) {
-    return new QueryResult("execute create not implemented");
+    Tables tables;
+    Columns cols;
+    Table temp(&tables, std::string(statement->tableName), statement->columns);
+    temp.create(); //populate metatable
+
+    std::cout << statement->tableName << std::endl;
+    return new QueryResult("successfully created column ");
 }
 
 QueryResult *SQLExec::drop(const hsql::DropStatement *statement) {
-    return new QueryResult("execute drop not implemented");
+    Tables tbls;
+    Columns cols;
+    bool dropped = false;
+    int i = 0;
+    Handles* hands = tbls.select(); //create ValueDict of all the row handles
+    Handles* col_hands = cols.select(); //and col handles
+    while(!dropped && i < hands->size()) {
+        Value rowname = tbls.project((*hands)[i])->at("table_name"); //grab all the rows in the column
+        if (rowname.s == statement->name) {
+            tbls.del((*hands)[i]); //remove metadata
+            dropped = true;
+        }
+        i++;
+            }
+    i = 0;
+
+    while(i < col_hands->size()) {
+        Value rowname = cols.project((*col_hands)[i])->at("table_name"); //grab all the rows in the column
+        if (rowname.s == statement->name) {
+            cols.del((*col_hands)[i]); //remove metadata
+    } i++;
+        }
+    if (dropped){
+        return new QueryResult("table drop success");
+    }
+    return new QueryResult("table drop fail");
 }
 
 QueryResult *SQLExec::show(const hsql::ShowStatement *statement)  {
-    return new QueryResult("execute show not implemented");
+    Tables tables;
+    Columns cols;
+    if(statement->type == hsql::ShowStatement::kTables ){
+        tables.show_tables();
+    } else if(statement->type == hsql::ShowStatement::kColumns ){
+        cols.show_cols(statement->tableName);
+    } else throw SQLExecError (std::string("Plz request table names or columns"));
+
+    //QueryResult *result = new QueryResult(statement->kColumns, statement->)
+
+    return new QueryResult("show successful");
 }

@@ -23,7 +23,7 @@ public:
     virtual void create();
     virtual Handle insert(const ValueDict* row);
     virtual void del(Handle handle);
-
+    virtual void show_tables();
     virtual void get_columns(Identifier table_name, ColumnNames &column_names, ColumnAttributes &column_attributes);
     virtual DbRelation& get_table(Identifier table_name);
 
@@ -44,5 +44,7 @@ public:
     virtual ~Columns() {}
 
     virtual void create();
+    virtual void show_cols(std::string name);
     virtual Handle insert(const ValueDict* row);
 };
+
