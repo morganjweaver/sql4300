@@ -66,12 +66,30 @@ QueryResult *SQLExec::execute(const hsql::SQLStatement *statement) throw(SQLExec
                 return drop((const hsql::DropStatement *) statement);
             case hsql::kStmtShow:
                 return show((const hsql::ShowStatement *) statement);
+            case hsql::kStmtInsert:
+                return insert((const hsql::InsertStatement *) statement);
+            case hsql::kStmtDelete:
+                return del((const hsql::DeleteStatement *) statement);
+            case hsql::kStmtSelect:
+                return select((const hsql::SelectStatement *) statement);
             default:
                 return new QueryResult("not implemented");
         }
     } catch (DbRelationError& e) {
         throw SQLExecError(std::string("DbRelationError: ") + e.what());
     }
+}
+
+QueryResult *SQLExec::insert(const hsql::InsertStatement *statement) {
+    return new QueryResult("INSERT statement not yet implemented");  // FIXME
+}
+
+QueryResult *SQLExec::del(const hsql::DeleteStatement *statement) {
+    return new QueryResult("DELETE statement not yet implemented");  // FIXME
+}
+
+QueryResult *SQLExec::select(const hsql::SelectStatement *statement) {
+    return new QueryResult("SELECT statement not yet implemented");  // FIXME
 }
 
 void SQLExec::column_definition(const hsql::ColumnDefinition *col, Identifier& column_name,
