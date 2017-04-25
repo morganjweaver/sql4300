@@ -44,10 +44,16 @@ EvalPlan::EvalPlan(const EvalPlan *other)
         : type(other->type), table(other->table) {
     if (other->relation != nullptr)
         relation = new EvalPlan(other->relation);
+    else
+        relation = nullptr;
     if (other->projection != nullptr)
         projection = new ColumnNames(*other->projection);
+    else
+        projection = nullptr;
     if (other->select_conjunction != nullptr)
         select_conjunction = new ValueDict(*other->select_conjunction);
+    else
+        select_conjunction = nullptr;
 }
 
 EvalPlan::~EvalPlan() {
