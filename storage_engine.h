@@ -130,12 +130,18 @@ public:
 
 	virtual Handles* select() = 0;
 	virtual Handles* select(const ValueDict* where) = 0;
+    virtual Handles* select(Handles* current_selection, const ValueDict* where) = 0;
+
 	virtual ValueDict* project(Handle handle) = 0;
 	virtual ValueDict* project(Handle handle, const ColumnNames* column_names) = 0;
     virtual ValueDict* project(Handle handle, const ValueDict* column_names_from_dict);
+    virtual ValueDicts* project(Handles *handles);
+    virtual ValueDicts* project(Handles *handles, const ColumnNames* column_names);
+    virtual ValueDicts* project(Handles *handles, const ValueDict* column_names);
 
     virtual const ColumnNames& get_column_names() const { return column_names; }
     virtual const ColumnAttributes get_column_attributes() const { return column_attributes; }
+    virtual ColumnAttributes* get_column_attributes(const ColumnNames &select_column_names) const;
 
 protected:
 	Identifier table_name;
