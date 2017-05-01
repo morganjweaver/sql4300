@@ -7,7 +7,7 @@ set(SOURCE_FILES
         heap_storage.cpp
         heap_storage.h
         sql4300.cpp
-        storage_engine.h ParseTreeToString.cpp ParseTreeToString.h SQLExec.cpp SQLExec.h schema_tables.h schema_tables.cpp storage_engine.cpp EvalPlan.cpp EvalPlan.h)
+        storage_engine.h ParseTreeToString.cpp ParseTreeToString.h SQLExec.cpp SQLExec.h schema_tables.h schema_tables.cpp storage_engine.cpp EvalPlan.cpp EvalPlan.h btree.cpp btree.h BTreeNode.cpp BTreeNode.h)
 
 include_directories(/usr/local/db6/include)
 include_directories(~/sql-parser/src)

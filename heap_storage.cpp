@@ -78,6 +78,26 @@ RecordIDs* SlottedPage::ids(void) const {
 	return vec;
 }
 
+// Erase all the records
+void SlottedPage::clear() {
+    this->num_records = 0;
+    this->end_free = DB_BLOCK_SZ - 1;
+    put_header();
+}
+
+// Count of non-deleted records
+u16 SlottedPage::size() const {
+    u16 size, loc;
+    u16 count = 0;
+    for (RecordID record_id = 1; record_id <= this->num_records; record_id++) {
+        get_header(size, loc, record_id);
+        if (loc != 0)
+            count++;
+    }
+    return count;
+}
+
+
 // Get the size and offset for given id. For id of zero, it is the block header.
 void SlottedPage::get_header(u16 &size, u16 &loc, RecordID id) const {
 	size = get_n((u16) 4*id);
@@ -448,7 +468,7 @@ Dbt* HeapTable::marshal(const ValueDict* row) const {
             offset += sizeof(uint8_t);
 
         } else {
-			throw DbRelationError("only know how to marshal INT and TEXT");
+			throw DbRelationError("only know how to marshal INT, TEXT, or BOOLEAN");
 		}
 	}
 	char *right_size_bytes = new char[offset];
@@ -482,7 +502,7 @@ ValueDict* HeapTable::unmarshal(Dbt* data) const {
             value.n = *(uint8_t*)(bytes + offset);
             offset += sizeof(uint8_t);
     	} else {
-            throw DbRelationError("Only know how to unmarshal INT and TEXT");
+            throw DbRelationError("Only know how to unmarshal INT, TEXT, or BOOLEAN");
     	}
 		(*row)[column_name] = value;
     }

@@ -2,7 +2,7 @@ CCFLAGS     = -std=c++11 -std=c++0x -Wall -Wno-c++11-compat -DHAVE_CXX_STDHEADER
 BDB         = /usr/local/db6
 PARSER      = $(HOME)/sql-parser
 LIBS        = -ldb_cxx -lsqlparser
-OBJS        = sql4300.o heap_storage.o ParseTreeToString.o SQLExec.o schema_tables.o storage_engine.o EvalPlan.o
+OBJS        = sql4300.o heap_storage.o ParseTreeToString.o SQLExec.o schema_tables.o storage_engine.o EvalPlan.o btree.o BTreeNode.o
 
 
 %.o: %.cpp

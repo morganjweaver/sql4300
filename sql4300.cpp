@@ -12,6 +12,7 @@
 #include "SQLParser.h"
 #include "ParseTreeToString.h"
 #include "SQLExec.h"
+#include "btree.h"
 
 void initialize_environment(char *envHome);
 
@@ -33,7 +34,8 @@ int main(int argc, char *argv[]) {
         if (query == "quit")
             break;
         if (query == "test") {
-            std::cout << (test_heap_storage() ? "ok" : "failed") << std::endl;
+            std::cout << "test_heap_storage: " << (test_heap_storage() ? "ok" : "failed") << std::endl;
+            std::cout << "test_btree: " << (test_btree() ? "ok" : "failed") << std::endl;
             continue;
         }
 
