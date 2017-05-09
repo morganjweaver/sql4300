@@ -73,7 +73,7 @@ void BTreeIndex::close() {
 
 // Find all the rows whose columns are equal to key. Assumes key is a dictionary whose keys are the column
 // names in the index. Returns a list of row handles.
-Handles* BTreeIndex::lookup(ValueDict* key_dict) const {
+Handles* BTreeIndex::lookup(ValueDict* key_dict) {
     KeyValue *key = tkey(key_dict);
     Handles *handles = _lookup(this->root, this->stat->get_height(), key);
     delete key;
@@ -81,7 +81,7 @@ Handles* BTreeIndex::lookup(ValueDict* key_dict) const {
 }
 
 // Recursive lookup.
-Handles* BTreeIndex::_lookup(BTreeNode *node, uint depth, const KeyValue* key) const {
+Handles* BTreeIndex::_lookup(BTreeNode *node, uint depth, const KeyValue* key) {
     if (depth == 1) { // base case: leaf
         BTreeLeaf *leaf = (BTreeLeaf *) node;
         Handles *handles = new Handles();
@@ -94,11 +94,11 @@ Handles* BTreeIndex::_lookup(BTreeNode *node, uint depth, const KeyValue* key) c
         return handles;
     } else { // interior node: find the block to go to in the next level down and recurse there
         BTreeInterior *interior = (BTreeInterior *) node;
-        return _lookup(interior->find(key, depth), depth - 1, key);
+        return _lookup(find(interior, depth, key), depth - 1, key);
     }
 }
 
-Handles* BTreeIndex::range(ValueDict* min_key, ValueDict* max_key) const {
+Handles* BTreeIndex::range(ValueDict* min_key, ValueDict* max_key) {
     throw DbRelationError("Don't know how to do a range query on Btree index yet");
     // FIXME
 }
@@ -132,7 +132,7 @@ Insertion BTreeIndex::_insert(BTreeNode *node, uint depth, const KeyValue* key, 
         return leaf->insert(key, handle);
     } else {
         BTreeInterior *interior = (BTreeInterior *)node;
-        Insertion new_kid = _insert(interior->find(key, depth), depth - 1, key, handle);
+        Insertion new_kid = _insert(find(interior, depth, key), depth - 1, key, handle);
         if (!BTreeNode::insertion_is_none(new_kid)) {
             BlockID nnode = new_kid.first;
             KeyValue boundary = new_kid.second;
@@ -142,6 +142,21 @@ Insertion BTreeIndex::_insert(BTreeNode *node, uint depth, const KeyValue* key, 
     }
 }
 
+// Call the interior node's find method and construct an appropriate BTreeNode at the next level with the response
+BTreeNode *BTreeIndex::find(BTreeInterior *node, uint height, const KeyValue* key)  {
+    BlockID down = node->find(key);
+    if (height == 2)
+        return make_leaf(down);
+    else
+        return new BTreeInterior(this->file, down, this->key_profile, false);
+}
+
+// Construct an appropriate leaf
+BTreeLeaf *BTreeIndex::make_leaf(BlockID id) {
+    return new BTreeLeaf(this->file, id, this->key_profile, false);
+}
+
+// Delete an index entry
 void BTreeIndex::del(Handle handle) {
     throw DbRelationError("Don't know how to delete from a BTree index yet");
     // FIXME
@@ -161,6 +176,26 @@ KeyValue *BTreeIndex::tkey(const ValueDict *key) const {
         kv->push_back(key->at(col_name));
     return kv;
 }
+
+BTreeTable::BTreeTable(Identifier table_name, ColumnNames column_names, ColumnAttributes column_attributes,
+                       const ColumnNames& primary_key)
+        : DbRelation(table_name, column_names, column_attributes, primary_key) {
+    throw DbRelationError("Btree Table not implemented"); // FIXME
+}
+
+void BTreeTable::create() {}
+void BTreeTable::create_if_not_exists() {}
+void BTreeTable::drop() {}
+void BTreeTable::open() {}
+void BTreeTable::close() {}
+Handle BTreeTable::insert(const ValueDict* row) { return Handle(); }
+void BTreeTable::update(const Handle handle, const ValueDict* new_values) {}
+void BTreeTable::del(const Handle handle) {}
+Handles* BTreeTable::select() { return nullptr; }
+Handles* BTreeTable::select(const ValueDict* where) { return nullptr; }
+Handles* BTreeTable::select(Handles *current_selection, const ValueDict* where) { return nullptr; }
+ValueDict* BTreeTable::project(Handle handle) {return nullptr; }
+ValueDict* BTreeTable::project(Handle handle, const ColumnNames* column_names) { return nullptr; }
 
 
 bool test_btree() {

@@ -88,8 +88,8 @@ Dbt *BTreeNode::marshal_block_id(BlockID block_id) {
 Dbt *BTreeNode::marshal_handle(Handle handle) {
     char *bytes = new char[sizeof(BlockID) + sizeof(RecordID)];
     Dbt *dbt = new Dbt(bytes, sizeof(BlockID) + sizeof(RecordID));
-    *(BlockID *)bytes = handle.first;
-    *(RecordID *)(bytes + sizeof(BlockID)) = handle.second;
+    *(BlockID *)bytes = handle.block_id;
+    *(RecordID *)(bytes + sizeof(BlockID)) = handle.record_id;
     return dbt;
 }
 
@@ -208,7 +208,7 @@ BTreeInterior::~BTreeInterior() {
 }
 
 // Get next block down in tree where key must be.
-BTreeNode *BTreeInterior::find(const KeyValue* key, uint depth) const {
+BlockID BTreeInterior::find(const KeyValue* key) const {
     BlockID down = this->pointers.back();  // last pointer is correct if we don't find an earlier boundary
     for (uint i = 0; i < this->boundaries.size(); i++) {
         KeyValue *boundary = this->boundaries[i];
@@ -220,10 +220,7 @@ BTreeNode *BTreeInterior::find(const KeyValue* key, uint depth) const {
             break;
         }
     }
-    if (depth == 2)
-        return new BTreeLeaf(this->file, down, this->key_profile, false);
-    else
-        return new BTreeInterior(this->file, down, this->key_profile, false);
+    return down;
 }
 
 // Save the pointers and boundaries in the correct order

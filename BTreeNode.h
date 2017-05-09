@@ -4,8 +4,6 @@
 #include "heap_storage.h"
 
 typedef std::vector<ColumnAttribute::DataType> KeyProfile;
-typedef std::vector<Value> KeyValue;
-typedef std::vector<KeyValue*> KeyValues;
 typedef std::vector<BlockID> BlockPointers;
 typedef std::pair<BlockID,KeyValue> Insertion;
 
@@ -63,7 +61,7 @@ public:
     BTreeInterior(HeapFile &file, BlockID block_id, const KeyProfile& key_profile, bool create);
     virtual ~BTreeInterior();
 
-    BTreeNode *find(const KeyValue* key, uint depth) const;
+    BlockID find(const KeyValue* key) const;
     Insertion insert(const KeyValue* boundary, BlockID block_id);
     virtual void save();
 
