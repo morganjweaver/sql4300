@@ -112,6 +112,7 @@ public:
 
     Handle() : block_id(0), record_id(0), key_value() {}
     Handle(BlockID block_id, RecordID record_id) : block_id(block_id), record_id(record_id) {}
+    Handle(KeyValue kv) : key_value(kv) {}
 };
 
 typedef std::string Identifier;

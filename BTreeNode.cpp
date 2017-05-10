@@ -417,6 +417,7 @@ Insertion BTreeLeafBase::split(BTreeLeafBase *nleaf, const KeyValue *key, BTreeL
 
 }
 
+
 BTreeLeafIndex::BTreeLeafIndex(HeapFile &file, BlockID block_id, const KeyProfile& key_profile, bool create)
         : BTreeLeafBase(file, block_id, key_profile, create) {
     if (!create) {
@@ -446,4 +447,113 @@ BTreeLeafValue BTreeLeafIndex::get_value(RecordID record_id) {
 
 Dbt *BTreeLeafIndex::marshal_value(BTreeLeafValue value) {
     return marshal_handle(value.h);
+}
+
+
+BTreeLeafFile::BTreeLeafFile(HeapFile &file, BlockID block_id, const KeyProfile& key_profile,
+                             ColumnNames non_indexed_column_names, ColumnAttributes column_attributes,
+                             bool create)
+        : BTreeLeafBase(file, block_id, key_profile, create),
+          column_names(non_indexed_column_names),
+          column_attributes(column_attributes) {
+    if (!create) {
+        RecordIDs *record_id_list = this->block->ids();
+        RecordID i = 1;
+        for (auto const& record_id: *record_id_list) {
+            if (i == record_id_list->size()) {
+                // next leaf block
+                this->next_leaf = get_block_id(i);
+            } else if (i%2 == 0) {
+                // record i-1: handle, record i: key
+                KeyValue *key_value = get_key(i);
+                this->key_map[*key_value] = get_value(i-1);
+            }
+            i++;
+        }
+        delete record_id_list;
+    }
+}
+
+BTreeLeafFile::~BTreeLeafFile() {
+}
+
+BTreeLeafValue BTreeLeafFile::get_value(RecordID record_id) {
+    Dbt *dbt = this->block->get(record_id);
+    char *bytes = (char*)dbt->get_data();
+    ValueDict *row = new ValueDict();
+    Value value;
+    uint offset = 0;
+    uint col_num = 0;
+    for (auto const& cn: this->column_names) {
+        ColumnAttribute ca = this->column_attributes[col_num++];
+        value.data_type = ca.get_data_type();
+        if (value.data_type == ColumnAttribute::DataType::INT) {
+            value.n = *(int32_t*)(bytes + offset);
+            offset += sizeof(int32_t);
+        } else if (value.data_type == ColumnAttribute::DataType::TEXT) {
+            uint16_t size = *(uint16_t *)(bytes + offset);
+            offset += sizeof(uint16_t);
+            char buffer[DB_BLOCK_SZ];
+            memcpy(buffer, bytes+offset, size);
+            buffer[size] = '\0';
+            value.s = std::string(buffer);  // assume ascii for now
+            offset += size;
+        } else if (value.data_type == ColumnAttribute::DataType::BOOLEAN) {
+            value.n = *(uint8_t*)(bytes + offset);
+            offset += sizeof(uint8_t);
+        } else {
+            throw DbRelationError("Only know how to unmarshal INT, TEXT, or BOOLEAN");
+        }
+        (*row)[cn] = value;
+    }
+    delete dbt;
+    return BTreeLeafValue(row);
+}
+
+Dbt *BTreeLeafFile::marshal_value(BTreeLeafValue btvalue) {
+    typedef uint16_t u16;
+    char *bytes = new char[DB_BLOCK_SZ]; // more than we need (we insist that one row fits into DB_BLOCK_SZ)
+    ValueDict *row = btvalue.vd;
+    uint offset = 0;
+    uint col_num = 0;
+    for (auto const& column_name: this->column_names) {
+        ColumnAttribute ca = this->column_attributes[col_num++];
+        ValueDict::const_iterator column = row->find(column_name);
+        Value value = column->second;
+
+        if (ca.get_data_type() == ColumnAttribute::DataType::INT) {
+            if (offset + 4 > DB_BLOCK_SZ - 4)
+                throw DbRelationError("row too big to marshal");
+
+            *(int32_t*) (bytes + offset) = value.n;
+            offset += sizeof(int32_t);
+
+        } else if (ca.get_data_type() == ColumnAttribute::DataType::TEXT) {
+            u_long size = (u16) value.s.length();
+            if (size > UINT16_MAX)
+                throw DbRelationError("text field too long to marshal");
+            if (offset + 2 + size > DB_BLOCK_SZ)
+                throw DbRelationError("row too big to marshal");
+
+            *(u16*) (bytes + offset) = (u16) size;
+            offset += sizeof(u16);
+            memcpy(bytes+offset, value.s.c_str(), size); // assume ascii for now
+            offset += size;
+
+        } else if (ca.get_data_type() == ColumnAttribute::DataType::BOOLEAN) {
+            if (offset + 1 > DB_BLOCK_SZ - 1)
+                throw DbRelationError("row too big to marshal");
+
+            *(uint8_t*) (bytes + offset) = (uint8_t)value.n;
+            offset += sizeof(uint8_t);
+
+        } else {
+            throw DbRelationError("only know how to marshal INT, TEXT, or BOOLEAN");
+        }
+    }
+    char *right_size_bytes = new char[offset];
+    memcpy(right_size_bytes, bytes, offset);
+    delete[] bytes;
+    Dbt *data = new Dbt(right_size_bytes, offset);
+    return data;
 }

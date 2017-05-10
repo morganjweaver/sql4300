@@ -89,6 +89,8 @@ public:
 };
 
 
+typedef std::map<KeyValue,BTreeLeafValue> LeafMap;
+
 class BTreeLeafBase : public BTreeNode {
 public:
     BTreeLeafBase(HeapFile &file, BlockID block_id, const KeyProfile& key_profile, bool create);
@@ -99,10 +101,12 @@ public:
     virtual void save();
 
     virtual Insertion split(BTreeLeafBase *new_leaf, const KeyValue* key, BTreeLeafValue value);
+    virtual LeafMap const& get_key_map() const { return this->key_map; }
+    virtual BlockID get_next_leaf() const { return this->next_leaf; }
 
 protected:
     BlockID next_leaf;
-    std::map<KeyValue,BTreeLeafValue> key_map;
+    LeafMap key_map;
 
     virtual BTreeLeafValue get_value(RecordID record_id) = 0;
     virtual Dbt *marshal_value(BTreeLeafValue value) = 0;
@@ -122,10 +126,18 @@ protected:
 
 class BTreeLeafFile : public BTreeLeafBase {
 public:
-    BTreeLeafFile(HeapFile &file, BlockID block_id, const KeyProfile& key_profile, bool create);
+    BTreeLeafFile(HeapFile &file,
+                  BlockID block_id,
+                  const KeyProfile& key_profile,
+                  ColumnNames non_indexed_column_names,
+                  ColumnAttributes column_attributes,
+                  bool create);
     virtual ~BTreeLeafFile();
 
 protected:
+    ColumnNames column_names;
+    ColumnAttributes column_attributes;
+
     virtual BTreeLeafValue get_value(RecordID record_id);
     virtual Dbt *marshal_value(BTreeLeafValue value);
 };
