@@ -33,7 +33,7 @@ protected:
     Handles* _lookup(BTreeNode *node, uint height, const KeyValue* key);
     Insertion _insert(BTreeNode *node, uint height, const KeyValue* key, Handle handle);
     BTreeNode *find(BTreeInterior *node, uint height, const KeyValue* key);
-    virtual BTreeLeaf *make_leaf(BlockID id);
+    virtual BTreeLeafBase *make_leaf(BlockID id, bool create);
 };
 
 class BTreeTable : public DbRelation {

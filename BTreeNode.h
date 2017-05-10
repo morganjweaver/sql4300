@@ -7,6 +7,7 @@ typedef std::vector<ColumnAttribute::DataType> KeyProfile;
 typedef std::vector<BlockID> BlockPointers;
 typedef std::pair<BlockID,KeyValue> Insertion;
 
+
 class BTreeNode {
 public:
     BTreeNode(HeapFile &file, BlockID block_id, const KeyProfile& key_profile, bool create);
@@ -34,6 +35,7 @@ protected:
     virtual KeyValue* get_key(RecordID record_id) const;
 };
 
+
 class BTreeStat : public BTreeNode {
 public:
     static const RecordID ROOT = 1;  // where we store the root id in the stat block
@@ -56,6 +58,7 @@ protected:
 
 };
 
+
 class BTreeInterior : public BTreeNode {
 public:
     BTreeInterior(HeapFile &file, BlockID block_id, const KeyProfile& key_profile, bool create);
@@ -73,16 +76,56 @@ protected:
     KeyValues boundaries;
 };
 
-class BTreeLeaf : public BTreeNode {
-public:
-    BTreeLeaf(HeapFile &file, BlockID block_id, const KeyProfile& key_profile, bool create);
-    virtual ~BTreeLeaf();
 
-    Handle find_eq(const KeyValue* key) const;  // throws if not found
-    Insertion insert(const KeyValue* key, Handle handle);
+class BTreeLeafValue {
+public:
+    Handle h;
+    ValueDict *vd;
+
+    BTreeLeafValue() : h(0,0), vd(nullptr) {}
+    BTreeLeafValue(Handle h) : h(h), vd(nullptr) {}
+    BTreeLeafValue(ValueDict *vd) : h(0,0), vd(vd) {}
+    ~BTreeLeafValue() {}
+};
+
+
+class BTreeLeafBase : public BTreeNode {
+public:
+    BTreeLeafBase(HeapFile &file, BlockID block_id, const KeyProfile& key_profile, bool create);
+    virtual ~BTreeLeafBase();
+
+    BTreeLeafValue find_eq(const KeyValue* key) const;  // throws if not found
+    Insertion insert(const KeyValue* key, BTreeLeafValue value);
     virtual void save();
+
+    virtual Insertion split(BTreeLeafBase *new_leaf, const KeyValue* key, BTreeLeafValue value);
 
 protected:
     BlockID next_leaf;
-    std::map<KeyValue,Handle> key_map;
+    std::map<KeyValue,BTreeLeafValue> key_map;
+
+    virtual BTreeLeafValue get_value(RecordID record_id) = 0;
+    virtual Dbt *marshal_value(BTreeLeafValue value) = 0;
+};
+
+
+class BTreeLeafIndex : public BTreeLeafBase {
+public:
+    BTreeLeafIndex(HeapFile &file, BlockID block_id, const KeyProfile& key_profile, bool create);
+    virtual ~BTreeLeafIndex();
+
+protected:
+    virtual BTreeLeafValue get_value(RecordID record_id);
+    virtual Dbt *marshal_value(BTreeLeafValue value);
+};
+
+
+class BTreeLeafFile : public BTreeLeafBase {
+public:
+    BTreeLeafFile(HeapFile &file, BlockID block_id, const KeyProfile& key_profile, bool create);
+    virtual ~BTreeLeafFile();
+
+protected:
+    virtual BTreeLeafValue get_value(RecordID record_id);
+    virtual Dbt *marshal_value(BTreeLeafValue value);
 };

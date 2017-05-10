@@ -318,41 +318,25 @@ Insertion BTreeInterior::insert(const KeyValue* boundary, BlockID block_id) {
  * BTreeLeaf *
  *************/
 
-BTreeLeaf::BTreeLeaf(HeapFile &file, BlockID block_id, const KeyProfile& key_profile, bool create)
+BTreeLeafBase::BTreeLeafBase(HeapFile &file, BlockID block_id, const KeyProfile& key_profile, bool create)
         : BTreeNode(file, block_id, key_profile, create), next_leaf(0), key_map() {
-    if (!create) {
-        RecordIDs *record_id_list = this->block->ids();
-        RecordID i = 1;
-        for (auto const& record_id: *record_id_list) {
-            if (i == record_id_list->size()) {
-                // next leaf block
-                this->next_leaf = get_block_id(i);
-            } else if (i%2 == 0) {
-                // record i-1: handle, record i: key
-                KeyValue *key_value = get_key(i);
-                this->key_map[*key_value] = get_handle(i-1);
-            }
-            i++;
-        }
-        delete record_id_list;
-    }
 }
 
-BTreeLeaf::~BTreeLeaf() {
+BTreeLeafBase::~BTreeLeafBase() {
 }
 
 // Find the handle for a given key
-Handle BTreeLeaf::find_eq(const KeyValue* key) const {
+BTreeLeafValue BTreeLeafBase::find_eq(const KeyValue* key) const {
     return this->key_map.at(*key);
 }
 
 // Save the key_map and next_leaf data in the correct order
-void BTreeLeaf::save() {
+void BTreeLeafBase::save() {
     Dbt *dbt;
     this->block->clear();
     for (auto const& item: this->key_map) {
         // handle
-        dbt = marshal_handle(item.second);
+        dbt = marshal_value(item.second);
         this->block->add(dbt);
         delete[] (char *) dbt->get_data();
         delete dbt;
@@ -373,13 +357,13 @@ void BTreeLeaf::save() {
 }
 
 // Insert key, handle pair into block.
-Insertion BTreeLeaf::insert(const KeyValue* key, Handle handle) {
+Insertion BTreeLeafBase::insert(const KeyValue* key, BTreeLeafValue value) {
     // check unique
     if (this->key_map.find(*key) != this->key_map.end())
         throw DbRelationError("Duplicate keys are not allowed in unique index");
 
     Dbt *dbt;
-    dbt = marshal_handle(handle);
+    dbt = marshal_value(value);
     try {
         // following is just a check for size (the save method will redo this in the right order)
         this->block->add(dbt);
@@ -391,42 +375,75 @@ Insertion BTreeLeaf::insert(const KeyValue* key, Handle handle) {
         delete dbt;
 
         // that worked, so no need to split
-        this->key_map[*key] = handle;
+        this->key_map[*key] = value;
         save();
         return BTreeNode::insertion_none();
 
     } catch (DbBlockNoRoomError &e) {
         delete[] (char *) dbt->get_data();
         delete dbt;
+        throw;
+    }
+}
 
-        // too big, so split
+// too big, so split
+Insertion BTreeLeafBase::split(BTreeLeafBase *nleaf, const KeyValue *key, BTreeLeafValue value) {
+    // put the new sister to the right
+    nleaf->next_leaf = this->next_leaf;
+    this->next_leaf = nleaf->id;
 
-        // create the sister and put her to the right
-        BTreeLeaf *nleaf = new BTreeLeaf(this->file, 0, this->key_profile, true);
-        nleaf->next_leaf = this->next_leaf;
-        this->next_leaf = nleaf->id;
+    // move half of the entries to the sister
+    auto key_list = this->key_map;       // make a copy of my key_map
+    key_list[*key] = value;              // add key/handle to it
+    u_long split = key_list.size() / 2;  // figure out how many to keep (the rest move to nleaf)
+    this->key_map.clear();               // empty my list
+    u_long i = 0;
+    KeyValue boundary;
+    for (auto const& item: key_list) {
+        if (i < split) {
+            this->key_map[item.first] = item.second;
+        } else if (i == split) {
+            boundary = item.first;
+            nleaf->key_map[boundary] = item.second;
+        } else {
+            nleaf->key_map[item.first] = item.second;
+        }
+        i++;
+    }
 
-        // move half of the entries to the sister
-        auto key_list = this->key_map;       // make a copy of my key_map
-        key_list[*key] = handle;             // add key/handle to it
-        u_long split = key_list.size() / 2;  // figure out how many to keep (the rest move to nleaf)
-        this->key_map.clear();               // empty my list
-        u_long i = 0;
-        KeyValue boundary;
-        for (auto const& item: key_list) {
-            if (i < split) {
-                this->key_map[item.first] = item.second;
-            } else if (i == split) {
-                boundary = item.first;
-                nleaf->key_map[boundary] = item.second;
-            } else {
-                nleaf->key_map[item.first] = item.second;
+    nleaf->save();
+    this->save();
+    return Insertion(nleaf->id, boundary);
+
+}
+
+BTreeLeafIndex::BTreeLeafIndex(HeapFile &file, BlockID block_id, const KeyProfile& key_profile, bool create)
+        : BTreeLeafBase(file, block_id, key_profile, create) {
+    if (!create) {
+        RecordIDs *record_id_list = this->block->ids();
+        RecordID i = 1;
+        for (auto const& record_id: *record_id_list) {
+            if (i == record_id_list->size()) {
+                // next leaf block
+                this->next_leaf = get_block_id(i);
+            } else if (i%2 == 0) {
+                // record i-1: handle, record i: key
+                KeyValue *key_value = get_key(i);
+                this->key_map[*key_value] = get_value(i-1);
             }
             i++;
         }
-
-        nleaf->save();
-        this->save();
-        return Insertion(nleaf->id, boundary);
+        delete record_id_list;
     }
+}
+
+BTreeLeafIndex::~BTreeLeafIndex() {
+}
+
+BTreeLeafValue BTreeLeafIndex::get_value(RecordID record_id) {
+    return get_handle(record_id);
+}
+
+Dbt *BTreeLeafIndex::marshal_value(BTreeLeafValue value) {
+    return marshal_handle(value.h);
 }

@@ -23,7 +23,7 @@ BTreeIndex::~BTreeIndex() {
 void BTreeIndex::create() {
     this->file.create();
     this->stat = new BTreeStat(this->file, STAT, STAT + 1, this->key_profile);
-    this->root = new BTreeLeaf(this->file, this->stat->get_root_id(), this->key_profile, true);
+    this->root = make_leaf(this->stat->get_root_id(), true);
     this->closed = false;
 
     Handles *handles = nullptr;
@@ -54,7 +54,7 @@ void BTreeIndex::open() {
         this->file.open();
         this->stat = new BTreeStat(this->file, STAT, this->key_profile);
         if (this->stat->get_height() == 1)
-            this->root = new BTreeLeaf(this->file, this->stat->get_root_id(), this->key_profile, false);
+            this->root = make_leaf(this->stat->get_root_id(), false);
         else
             this->root = new BTreeInterior(this->file, this->stat->get_root_id(), this->key_profile, false);
         this->closed = false;
@@ -83,11 +83,11 @@ Handles* BTreeIndex::lookup(ValueDict* key_dict) {
 // Recursive lookup.
 Handles* BTreeIndex::_lookup(BTreeNode *node, uint depth, const KeyValue* key) {
     if (depth == 1) { // base case: leaf
-        BTreeLeaf *leaf = (BTreeLeaf *) node;
+        BTreeLeafIndex *leaf = (BTreeLeafIndex *) node;
         Handles *handles = new Handles();
         try {
-            Handle handle = leaf->find_eq(key);
-            handles->push_back(handle);
+            BTreeLeafValue value = leaf->find_eq(key);
+            handles->push_back(value.h);
         } catch (std::out_of_range &e) {
             ; // not found, so we return an empty list
         }
@@ -128,8 +128,12 @@ void BTreeIndex::insert(Handle handle) {
 // Recursive insert. If a split happens at this level, return the (new node, boundary) of the split.
 Insertion BTreeIndex::_insert(BTreeNode *node, uint depth, const KeyValue* key, Handle handle) {
     if (depth == 1) {
-        BTreeLeaf *leaf = (BTreeLeaf *)node;
-        return leaf->insert(key, handle);
+        BTreeLeafBase *leaf = (BTreeLeafBase *)node;
+        try {
+            return leaf->insert(key, handle);
+        } catch (DbBlockNoRoomError &e) {
+            return leaf->split(make_leaf(0, true), key, handle);
+        }
     } else {
         BTreeInterior *interior = (BTreeInterior *)node;
         Insertion new_kid = _insert(find(interior, depth, key), depth - 1, key, handle);
@@ -146,14 +150,14 @@ Insertion BTreeIndex::_insert(BTreeNode *node, uint depth, const KeyValue* key, 
 BTreeNode *BTreeIndex::find(BTreeInterior *node, uint height, const KeyValue* key)  {
     BlockID down = node->find(key);
     if (height == 2)
-        return make_leaf(down);
+        return make_leaf(down, false);
     else
         return new BTreeInterior(this->file, down, this->key_profile, false);
 }
 
 // Construct an appropriate leaf
-BTreeLeaf *BTreeIndex::make_leaf(BlockID id) {
-    return new BTreeLeaf(this->file, id, this->key_profile, false);
+BTreeLeafBase *BTreeIndex::make_leaf(BlockID id, bool create) {
+    return new BTreeLeafIndex(this->file, id, this->key_profile, create);
 }
 
 // Delete an index entry
