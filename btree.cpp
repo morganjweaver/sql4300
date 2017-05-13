@@ -293,24 +293,84 @@ void BTreeFile::insert_value(ValueDict *row) {
 BTreeTable::BTreeTable(Identifier table_name, ColumnNames column_names, ColumnAttributes column_attributes,
                        const ColumnNames& primary_key)
         : DbRelation(table_name, column_names, column_attributes, primary_key){
-    throw DbRelationError("Btree Table not implemented"); // FIXME
+
+if(primary_key.empty()) {
+    throw DbRelationError("Need a primary key");
+}
+    ColumnNames* non_key = new ColumnNames();
+    ColumnAttributes* non_key_attr = new ColumnAttributes();
+    for(int i = 0; i<column_names.size(); i++) {   //if col is NOT a primary key check
+        if (std::find(primary_key.begin(), primary_key.end(), column_names[i]) == get_primary_key()->end()) {
+            non_key->push_back(column_names[i]);
+            non_key_attr->push_back(column_attributes[i]);
+        }
+    }
+    this->index = new BTreeFile(*this, table_name, primary_key, *non_key, *non_key_attr, true);
+
+    delete non_key_attr;
+    delete non_key;
 }
 
-void BTreeTable::create() {}
-void BTreeTable::create_if_not_exists() {}
-void BTreeTable::drop() {}
-void BTreeTable::open() {}
-void BTreeTable::close() {}
-Handle BTreeTable::insert(const ValueDict* row) { return Handle(); }
-void BTreeTable::update(const Handle handle, const ValueDict* new_values) {}
-void BTreeTable::del(const Handle handle) {}
-Handles* BTreeTable::select() { return nullptr; }
+void BTreeTable::create() {
+    this->index->create();
+}
+void BTreeTable::create_if_not_exists() {
+    try {
+        this->open();
+    } catch(...){
+        this->create();
+    }
+}
+void BTreeTable::drop() {
+    this->index->drop();
+}
+void BTreeTable::open() {
+    this->index->open();
+}
+void BTreeTable::close() {
+    this->index->close();
+}
+
+Handle BTreeTable::insert(const ValueDict* row) {
+    ValueDict *vald = this->validate(row);
+    this->index->insert_value(vald);
+    return Handle(*this->index->tkey(vald));//FIXME: This may be a bug to wrap in Handle.  Not sure if real handle of use being returned.
+    }
+
+void BTreeTable::update(const Handle handle, const ValueDict* new_values) { //assuming that new_values may be just ONE or ALL
+    ValueDict new_row = *this->project(handle); //deep copy by dereffing
+    for (auto& key : *new_values){
+        new_row[key.first ] = new_values->at(key.first);
+    }
+    this->validate(&new_row);
+    this->index->del(handle);
+    this->index->insert_value(&new_row);
+}
+void BTreeTable::del(const Handle handle) {
+    this->index->del(handle);
+}
+Handles* BTreeTable::select() {
+
+    return nullptr;
+}
+
 Handles* BTreeTable::select(const ValueDict* where) { return nullptr; }
+
 Handles* BTreeTable::select(Handles *current_selection, const ValueDict* where) { return nullptr; }
+
 ValueDict* BTreeTable::project(Handle handle) {return nullptr; }
+
 ValueDict* BTreeTable::project(Handle handle, const ColumnNames* column_names) { return nullptr; }
-ValueDict* BTreeTable::validate(const ValueDict* row) const { return nullptr; }
+
+ValueDict* BTreeTable::validate(const ValueDict* row) const {
+
+
+
+    return nullptr; }
+
 bool BTreeTable::selected(Handle handle, const ValueDict* where) { return false; }
+
+
 void BTreeTable::make_range(const ValueDict *where,
                             KeyValue *&minval, KeyValue *&maxval, ValueDict *&additional_where) {}
 
